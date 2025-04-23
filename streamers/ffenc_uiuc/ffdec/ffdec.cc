@@ -73,7 +73,7 @@ void ffdec::clean_up() {
 		avFrame = NULL;
 	}
 	if (avCodecContext != NULL) {
-		avcodec_close(avCodecContext);
+		//avcodec_close(avCodecContext);
 		avcodec_free_context(&avCodecContext);
 		avCodecContext = NULL;
 	}

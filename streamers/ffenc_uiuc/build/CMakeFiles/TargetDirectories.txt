@@ -1,0 +1,4 @@
+C:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc/build/CMakeFiles/ffenc.dir
+C:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc/build/CMakeFiles/ffdec.dir
+C:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc/build/CMakeFiles/ZERO_CHECK.dir

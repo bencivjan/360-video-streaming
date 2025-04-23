@@ -124,7 +124,8 @@ void ffenc::clean_up()
 		frame = NULL;
 	}
 	if (c){
-		avcodec_close(c);
+		//avcodec_close(c);
+		avcodec_free_context(&c);
 		av_free(c);
 		c = NULL;
 	}

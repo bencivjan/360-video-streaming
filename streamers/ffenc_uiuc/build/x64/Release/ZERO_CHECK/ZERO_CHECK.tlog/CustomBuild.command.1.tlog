@@ -1,0 +1,10 @@
+^C:\USERS\TEMPADMIN\DESKTOP\360-VIDEO-STREAMING\STREAMERS\FFENC_UIUC\BUILD\CMAKEFILES\BB08D6B4E2D80E2319650F09AC1E08BA\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc -BC:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/tempadmin/Desktop/360-video-streaming/streamers/ffenc_uiuc/build/ffenc_uiuc.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

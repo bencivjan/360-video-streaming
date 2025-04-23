@@ -6,11 +6,13 @@ import time
 from datetime import datetime
 import sys
 import os
+import av
+import h264
 
-mod_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'streamers', 'ffenc_uiuc'))
-if mod_dir not in sys.path:
-    sys.path.append(mod_dir)
-from streamers.ffenc_uiuc import h264
+# mod_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'streamers', 'ffenc_uiuc'))
+# if mod_dir not in sys.path:
+#     sys.path.append(mod_dir)
+# from streamers.ffenc_uiuc import h264
 
 def stream_video():
     if len(sys.argv) < 2:
