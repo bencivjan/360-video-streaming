@@ -1,97 +1,71 @@
-from flask import Flask, Response, url_for
-import cv2
-import numpy as np
+# receiver.py
+import av
 import socket
 import struct
+import cv2
+import pyvirtualcam
 import threading
-import time  # Import time for recording frame times
-import os
-import sys
 
-mod_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'streamers', 'ffenc_uiuc'))
-if mod_dir not in sys.path:
-    sys.path.append(mod_dir)
-from streamers.ffenc_uiuc import h264
 
-app = Flask(__name__)
+# retrieved frame
+global display_frame
 
-# Global variable to hold the latest image and frame times
-video_captures = {}
+def send_virtualcam():
+    with pyvirtualcam.Camera(width=3840, height=1920, fps=30) as cam:
+        print(f'Using virtual camera: {cam.device}')  # RGB
+        while True:
+            if display_frame is not None:
+                cam.send(display_frame[:, :, ::-1])
+                cam.sleep_until_next_frame()
 
-def handle_client(client_socket, addr):
-    global video_captures
-    client_ip = addr[0]
+def handle_client(conn, addr):
+    print(f"Accepted connection from {addr}")
 
-    compression_alg = struct.unpack('B', client_socket.recv(1))[0]
-    print(f'compression_alg: {compression_alg}')
-
-    IMGS_PATH = f'./received_imgs_{compression_alg}_{client_ip}/'
-    streamer = h264.H264(client_socket)
-    
-    os.makedirs(IMGS_PATH, exist_ok=True)
-
-    frame_idx = 0
-    while True:
-        try:
-            frame = streamer.get_frame()
-            if frame is None:
-                raise ConnectionResetError
-            video_captures[client_ip] = frame
-            img_name = IMGS_PATH + str(frame_idx) + '.jpg'
-            ret = cv2.imwrite(img_name, frame)
-            frame_idx += 1
-            if ret == False:
-                print(f'Failed to write image to {img_name}')
-                if client_ip in video_captures:
-                    del video_captures[client_ip]
+    try:
+        while True:
+            # Read 4-byte length
+            header = conn.recv(4)
+            if not header:
                 break
-        except (ConnectionResetError, BrokenPipeError, struct.error):
-            print("Client disconnected or error occurred")
-            if client_ip in video_captures:
-                del video_captures[client_ip]
-            break
+            packet_len = struct.unpack('>I', header)[0]
 
-def video_feed(camera_id):
-    global video_captures
+            # Read full packet
+            data = b''
+            while len(data) < packet_len:
+                chunk = conn.recv(packet_len - len(data))
+                if not chunk:
+                    break
+                data += chunk
+
+            # Decode
+            packet = av.Packet(data)
+            frames = decoder.decode(packet)
+            for frame in frames:
+                img = frame.to_ndarray(format='bgr24')
+                display_frame = img
+                cv2.imshow("Received", img)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    raise KeyboardInterrupt
+    except KeyboardInterrupt:
+        pass
+
+    conn.close()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    threading.Thread(target=send_virtualcam).start()
+
+    # Server socket
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(('0.0.0.0', 9999))
+    server.listen(1)
+    print("Waiting for connection...")
+    conn, addr = server.accept()
+    print(f"Connected to {addr}")
+
+    # Decoder
+    decoder = av.codec.CodecContext.create('h264', 'r')
+    
     while True:
-        if camera_id in video_captures:
-            img = video_captures[camera_id]
-            start = time.time()
-            print(f"Pred time: {time.time() - start}")
-            ret, jpeg = cv2.imencode('.jpg', img)
-            if ret:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
-
-@app.route(f'/video_feed/<string:camera_id>')
-def video_feed_route(camera_id):
-    return Response(video_feed(camera_id),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/')
-def index():
-    global video_captures
-    links = ''
-    for camera_id in video_captures.keys():
-        links += f'<p><a href="{url_for("video_feed_route", camera_id=camera_id)}">{camera_id}</a></p>'
-    return links
-
-def main():
-    HOST_PUBLIC = '0.0.0.0'
-    HOST_LOCAL = 'localhost'
-    SOCKET_PORT = 8010
-    WEB_PORT = 8080
-    server_socket = socket.socket()
-    server_socket.bind((HOST_PUBLIC, SOCKET_PORT))
-    server_socket.listen(1)
-    # So we don't have to wait when restarting the server
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-    threading.Thread(target=app.run, kwargs={'host':HOST_PUBLIC, 'port':WEB_PORT}).start()
-
-    while True:
-        client_socket, addr = server_socket.accept()
-        threading.Thread(target=handle_client, kwargs={'client_socket':client_socket, 'addr': addr}).start()
-
-if __name__ == '__main__':
-    main()
+        client_socket, addr = server.accept()
+        threading.Thread(target=handle_client, kwargs={'client_socket':conn, 'addr': addr}).start()

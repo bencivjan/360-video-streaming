@@ -1,65 +1,58 @@
+# sender.py
 import cv2
-import socket
-import numpy as np
-import struct
-import time
-from datetime import datetime
-import sys
-import os
 import av
-import h264
+import socket
+import struct
 
-# mod_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'streamers', 'ffenc_uiuc'))
-# if mod_dir not in sys.path:
-#     sys.path.append(mod_dir)
-# from streamers.ffenc_uiuc import h264
+# Settings
+VIDEO_SRC = 0#"/Users/bencivjan/Desktop/360-video-streaming/videos/climbing.mp4"  # Can also be a video path like 'video.mp4'
+SERVER_IP = '10.193.220.145' #'127.0.0.1'
+PORT = 9999
 
-def stream_video():
-    if len(sys.argv) < 2:
-        print('Input server IP address as first argument')
-        return
-    else:
-        TCP_IP = sys.argv[1]
-    TCP_PORT = 8010
+# Socket setup
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect((SERVER_IP, PORT))
 
-    cap = cv2.VideoCapture('videos/climbing.mp4')
-    client_socket = socket.socket()
-    client_socket.settimeout(5)  # 5 seconds timeout
-    while True:
-        try:
-            client_socket.connect((TCP_IP, TCP_PORT))
-            break
-        except OSError:
-            print("Unable to connect to server socket, retrying...")
-            datetime_obj = datetime.fromtimestamp(time.time())
-            readable_time = datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
-            with open("errors.out", "a") as err_file:
-                err_file.write(f'{readable_time}: Unable to connect to server at {TCP_IP}\n')
-            time.sleep(5)
+# OpenCV camera or video
+cap = cv2.VideoCapture(VIDEO_SRC)
+width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps    = int(cap.get(cv2.CAP_PROP_FPS) or 30)
 
-    try:
-        frames_read = 0
-        test_start_time = time.time()
+stream_options = {
+    'b': '10000k',  # Bitrate
+    'preset': 'ultrafast',  # Encoding speed
+}
 
-        client_socket.sendall(struct.pack('B', 0x8))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        streamer = h264.H264(client_socket, width, height, fps)
+# PyAV encoder
+output = av.open(sock.makefile('wb'), format='h264')
+stream = output.add_stream('h264', rate=fps, options=stream_options)
+stream.width = width
+stream.height = height
+stream.pix_fmt = 'yuv420p'
 
-        while True:
-            ret, frame = cap.read()
-            frames_read += 1
-            if not ret:
-                print("Failed to capture frame")
-                print(f'Actual frame rate: {frames_read / (time.time() - test_start_time)}')
-                break
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        continue
 
-            streamer.send_frame(frame)
-            print(frame.nbytes)
-    finally:
-        cap.release()
-        client_socket.close()
+    # Convert frame and encode
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    av_frame = av.VideoFrame.from_ndarray(frame_rgb, format='rgb24')
 
-if __name__ == '__main__':
-    stream_video()
+    for packet in stream.encode(av_frame):
+        packet_bytes = bytes(packet)
+        print(f'Packet size: {len(packet_bytes)} bytes')
+        # Send length prefix then data
+        sock.sendall(struct.pack('>I', len(packet_bytes)))
+        sock.sendall(packet_bytes)
+
+# Flush encoder
+for packet in stream.encode():
+    packet_bytes = packet.to_bytes()
+    sock.sendall(struct.pack('>I', len(packet_bytes)))
+    sock.sendall(packet_bytes)
+
+cap.release()
+sock.close()
