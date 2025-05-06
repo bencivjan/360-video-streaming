@@ -3,6 +3,7 @@ import cv2
 import av
 import socket
 import struct
+from datetime import datetime
 
 # Settings
 VIDEO_SRC = 0#"/Users/bencivjan/Desktop/360-video-streaming/videos/climbing.mp4"  # Can also be a video path like 'video.mp4'
@@ -31,28 +32,41 @@ stream.width = width
 stream.height = height
 stream.pix_fmt = 'yuv420p'
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        continue
+try:
+    while True:
+        ret, frame = cap.read()
 
-    # Convert frame and encode
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    av_frame = av.VideoFrame.from_ndarray(frame_rgb, format='rgb24')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-    for packet in stream.encode(av_frame):
-        packet_bytes = bytes(packet)
-        print(f'Packet size: {len(packet_bytes)} bytes')
-        # Send length prefix then data
+        position = (10, 50)
+        font = cv2.FONT_HERSHEY_PLAIN
+        font_scale = 5
+        color = (0, 0, 255)
+        thickness = 4
+
+        # Put the timestamp on the frame
+        cv2.putText(frame, timestamp, position, font, font_scale, color, thickness, cv2.LINE_AA)
+
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            continue
+
+        # Convert frame and encode
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        av_frame = av.VideoFrame.from_ndarray(frame_rgb, format='rgb24')
+
+        for packet in stream.encode(av_frame):
+            packet_bytes = bytes(packet)
+            print(f'Packet size: {len(packet_bytes)} bytes')
+            # Send length prefix then data
+            sock.sendall(struct.pack('>I', len(packet_bytes)))
+            sock.sendall(packet_bytes)
+except KeyboardInterrupt:
+    # Flush encoder
+    for packet in stream.encode():
+        packet_bytes = packet.to_bytes()
         sock.sendall(struct.pack('>I', len(packet_bytes)))
         sock.sendall(packet_bytes)
 
-# Flush encoder
-for packet in stream.encode():
-    packet_bytes = packet.to_bytes()
-    sock.sendall(struct.pack('>I', len(packet_bytes)))
-    sock.sendall(packet_bytes)
-
-cap.release()
-sock.close()
+    cap.release()
+    sock.close()
