@@ -1,13 +1,14 @@
-# sender.py
 import cv2
 import av
 import socket
 import struct
 from datetime import datetime
 
-# Settings
-VIDEO_SRC = 0#"/Users/bencivjan/Desktop/360-video-streaming/videos/climbing.mp4"  # Can also be a video path like 'video.mp4'
-SERVER_IP = '10.193.220.145' #'127.0.0.1'
+# CHANGE THESE SETTINGS AS NEEDED
+# VIDEO_SRC = 0 for webcam. Can also be a video path like "/Users/bencivjan/Desktop/360-video-streaming/videos/climbing.mp4"
+# SERVER_IP is the IP address of the server. Use '127.0.0.1' for local testing.
+VIDEO_SRC = 0
+SERVER_IP = '10.193.220.145'
 PORT = 9999
 
 # Socket setup
