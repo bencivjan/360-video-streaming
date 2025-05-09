@@ -1,4 +1,3 @@
-# receiver.py
 import av
 import socket
 import struct
@@ -60,12 +59,10 @@ if __name__ == "__main__":
     server.bind(('0.0.0.0', 9999))
     server.listen(1)
     print("Waiting for connection...")
-    conn, addr = server.accept()
-    print(f"Connected to {addr}")
 
     # Decoder
     decoder = av.codec.CodecContext.create('h264', 'r')
     
     while True:
-        client_socket, addr = server.accept()
-        threading.Thread(target=handle_client, kwargs={'client_socket':conn, 'addr': addr}).start()
+        conn, addr = server.accept()
+        threading.Thread(target=handle_client, kwargs={'conn':conn, 'addr': addr}).start()
