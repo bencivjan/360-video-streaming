@@ -4,10 +4,12 @@ import struct
 import cv2
 import pyvirtualcam
 import threading
+import time
 
 
 # retrieved frame
 global display_frame
+display_frame = None
 
 def send_virtualcam():
     with pyvirtualcam.Camera(width=3840, height=1920, fps=30) as cam:
@@ -19,6 +21,15 @@ def send_virtualcam():
 
 def handle_client(conn, addr):
     print(f"Accepted connection from {addr}")
+
+    frame_count = 0
+    start_time = time.time()
+    
+    def calculate_fps():
+        elapsed_time = time.time() - start_time
+        if elapsed_time > 0:
+            return frame_count / elapsed_time
+        return 0
 
     try:
         while True:
@@ -42,14 +53,14 @@ def handle_client(conn, addr):
             for frame in frames:
                 img = frame.to_ndarray(format='bgr24')
                 display_frame = img
-                cv2.imshow("Received", img)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    raise KeyboardInterrupt
-    except KeyboardInterrupt:
-        pass
-
-    conn.close()
-    cv2.destroyAllWindows()
+                frame_count += 1
+                print(calculate_fps())
+    except (socket.error, ConnectionResetError) as e:
+        print(f"Socket error: {e}")
+    finally:
+        conn.close()
+        avg_fps = calculate_fps()
+        print(f"Average FPS: {avg_fps:.2f}")
 
 if __name__ == "__main__":
     threading.Thread(target=send_virtualcam).start()
