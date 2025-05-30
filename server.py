@@ -1,16 +1,16 @@
 import av
 import socket
 import struct
-import cv2
 import pyvirtualcam
 import threading
 import time
 
 
-# retrieved frame
+# Retrieved frame to display in Unity
 global display_frame
 display_frame = None
 
+# Loop function to read display_frame and send to the virtual camera read by Unity
 def send_virtualcam():
     with pyvirtualcam.Camera(width=3840, height=1920, fps=30) as cam:
         print(f'Using virtual camera: {cam.device}')  # RGB
@@ -19,6 +19,7 @@ def send_virtualcam():
                 cam.send(display_frame[:, :, ::-1])
                 cam.sleep_until_next_frame()
 
+# Thread spawned for each client connection
 def handle_client(conn, addr):
     print(f"Accepted connection from {addr}")
 
