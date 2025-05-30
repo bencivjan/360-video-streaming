@@ -2,6 +2,8 @@
 
 This project enables real-time streaming of 360° video from a client (video source) to a server, which can display the video and output it to a VR device. It does so with relatively low latency, ranging from *122 - 174 ms* for camera to VR device transmission.
 
+[Read the paper here.](viz/Ben_Civjan_CS597_Sp25.pdf)
+
 ### Requirements
 To install dependencies:
 > `pip install -r requirements.txt`
